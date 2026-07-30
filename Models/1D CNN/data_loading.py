@@ -2,7 +2,7 @@ import os
 import numpy as np
 import scipy.io
 
-WND_SIZE = 1024
+WND_SIZE = 2048
 
 X_main = []
 y_main = []

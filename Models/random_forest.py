@@ -31,7 +31,7 @@ y_test = df_test["label"]
 # print("X : ", x_train.shape)
 # print("X : ", x_test.shape)
 
-rf = RandomForestClassifier(n_estimators=100, random_state=42, max_depth = 7, n_jobs=-1)
+rf = RandomForestClassifier(n_estimators=100, random_state=42, max_depth = 10, n_jobs=-1)
 
 rf.fit(x_train, y_train)
 y_pred = rf.predict(x_test)
