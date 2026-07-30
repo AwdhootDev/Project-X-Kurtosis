@@ -12,6 +12,7 @@ x_scaled = scaler.fit_transform(x)
 
 encoder = LabelEncoder()
 y_encoded = encoder.fit_transform(y)
+# print(encoder.classes_) # 0 for ball, 1 for inner, 2 normal, 3 outer
 
 kmeans = KMeans(n_clusters=4,random_state=42, n_init='auto')
 
