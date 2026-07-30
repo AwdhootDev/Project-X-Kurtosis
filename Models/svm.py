@@ -12,13 +12,8 @@ df_test = pd.read_csv("../Output/test_features.csv")
 x_train = df_train.drop(columns=['label', 'file_name'])
 y_train = df_train['label']
 
-encoder = LabelEncoder()
-y_train = encoder.fit_transform(y_train)
-# print(encoder.classes_) 0 ball , 1 inner, 2 normal, 3 outer
 x_test = df_test.drop(columns=['label', 'file_name'])
 y_test = df_test['label']
-
-y_test = encoder.transform(y_test)
 
 scaler = StandardScaler()
 x_train_scaled = scaler.fit_transform(x_train)
