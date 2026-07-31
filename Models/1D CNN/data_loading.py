@@ -7,10 +7,6 @@ import scipy.io as sio
 WND_SIZE = 2048
 
 def parse_filename(filepath):
-    """
-    Extracts the 10-class label and the motor load (HP).
-    Handles both numerical 'normal' files and descriptive 'fault' files.
-    """
     filename = os.path.basename(filepath).lower()
 
     if '97.mat' in filename: return 0, 0   # Label 0, 0 HP
@@ -39,9 +35,6 @@ def parse_filename(filepath):
     return label, load_hp
 
 def extract_data(target_loads, folder_path="data/**/*.mat"):
-    """
-    Crawls the dataset and extracts windows ONLY if the file's load matches the target_loads list.
-    """
     X_data = []
     y_labels = []
     
