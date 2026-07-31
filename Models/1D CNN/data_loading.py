@@ -1,48 +1,81 @@
 import os
+import glob
+import re
 import numpy as np
-import scipy.io
+import scipy.io as sio
 
 WND_SIZE = 2048
 
-X_main = []
-y_main = []
+def parse_filename(filepath):
+    filename = os.path.basename(filepath).lower()
 
-folder_label_map = {
-    "data/normal": 0,
-    "data/12k_DE_fault/Ball fault": 1,
-    "data/12k_DE_fault/Inner race": 2,
-    "data/12k_DE_fault/Outer race": 3
-}
+    if '97.mat' in filename: return 0, 0   # Label 0, 0 HP
+    if '98.mat' in filename: return 0, 1   # Label 0, 1 HP
+    if '99.mat' in filename: return 0, 2   # Label 0, 2 HP
+    if '100.mat' in filename: return 0, 3  # Label 0, 3 HP
 
-for folder_path, label in folder_label_map.items():
+    load_match = re.search(r'_(\d)\.mat$', filename)
+    if not load_match:
+        raise ValueError(f"Could not find load (HP) in filename: {filename}")
+        
+    load_hp = int(load_match.group(1))
+
+    if 'b007' in filename: label = 1
+    elif 'b014' in filename: label = 2
+    elif 'b021' in filename: label = 3
+    elif 'ir007' in filename: label = 4
+    elif 'ir014' in filename: label = 5
+    elif 'ir021' in filename: label = 6
+    elif 'or007' in filename: label = 7
+    elif 'or014' in filename: label = 8
+    elif 'or021' in filename: label = 9
+    else:
+        raise ValueError(f"Could not determine class for file: {filename}")
+        
+    return label, load_hp
+
+def extract_data(target_loads, folder_path="data/**/*.mat"):
+    X_data = []
+    y_labels = []
     
-    for file_name in os.listdir(folder_path):
-        if file_name.endswith(".mat"):
-            full_path = os.path.join(folder_path, file_name)
-            
-            my_dict = scipy.io.loadmat(full_path)
+    for file in glob.glob(folder_path, recursive=True):
+        try:
+            label, load_hp = parse_filename(file)
+        except ValueError as e:
+            continue
 
-            de_key = None
-            for key in my_dict.keys():
-                if '_DE_time' in key:
-                    de_key = key
+        if load_hp in target_loads:
+            mat_file = sio.loadmat(file)
+            mat_key = None
+
+            for key in mat_file.keys():
+                if "_DE_time" in key:
+                    mat_key = key
                     break
-            raw_data = my_dict[de_key].flatten()
-            no_of_window = len(raw_data)//WND_SIZE
+                    
+            if mat_key is None:
+                continue
+                
+            signal = mat_file[mat_key].flatten()
+            
+            no_windows = len(signal) // WND_SIZE
+            signal = signal[:no_windows * WND_SIZE]
+            x_matrix = signal.reshape(no_windows, WND_SIZE)
+            y_matrix = np.array([label] * no_windows)
+            
+            X_data.append(x_matrix)
+            y_labels.append(y_matrix)
+            
+    return np.vstack(X_data), np.concatenate(y_labels)
 
-            cutoff = no_of_window*WND_SIZE
-            X_matrix = raw_data[ :cutoff]
-            X_matrix = X_matrix.reshape(no_of_window,WND_SIZE)
-            y_label = np.array([label]* no_of_window)
-            X_main.append(X_matrix)
-            y_main.append(y_label)
+print("Starting Domain Generalization Extraction...")
 
-X_final = np.vstack(X_main)
-y_final = np.concatenate(y_main)
+print("Extracting Train Data (0, 1, 2 HP)...")
+X_train, y_train = extract_data(target_loads=[0, 1, 2])
+np.savez("cwru_train_multi_load.npz", X=X_train, y=y_train)
+print(f"Train Set Saved! Shape: {X_train.shape}, Unique Classes: {np.unique(y_train)}\n")
 
-print("Final X shape:", X_final.shape)
-print("Final y shape:", y_final.shape)
-
-save_path = "cwru_dataset.npz"
-np.savez(save_path, X=X_final, y=y_final)
-print(f"Dataset successfully saved to {save_path}!")
+print("Extracting Test Data (3 HP)...")
+X_test, y_test = extract_data(target_loads=[3])
+np.savez("cwru_test_3HP.npz", X=X_test, y=y_test)
+print(f"Test Set Saved! Shape: {X_test.shape}, Unique Classes: {np.unique(y_test)}")
