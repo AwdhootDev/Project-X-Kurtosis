@@ -47,6 +47,6 @@ df_test["binary_label"] = df_test["label"].apply(
 
 print(df_test["Prediction"].value_counts())
 print(df_test["binary_label"].value_counts())
-print(accuracy_score(df_test["binary_label"], y_pred)*100)
+print("Accuracy : ", accuracy_score(df_test["binary_label"], y_pred)*100)
 print(classification_report(df_test["binary_label"], y_pred))
-print(confusion_matrix(df_test["binary_label"], y_pred))
+print("", confusion_matrix(df_test["binary_label"], y_pred))
