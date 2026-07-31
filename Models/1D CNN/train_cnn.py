@@ -1,30 +1,25 @@
 import numpy as np 
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import torch
 from torch.utils.data import Dataset, DataLoader
 import torch.nn as nn
 import torch.optim as optim
 
-loaded_data = np.load("cwru_dataset.npz")
-X = loaded_data['X']
-y = loaded_data['y']
+train_data = np.load("cwru_train_multi_load.npz")
+test_data = np.load("cwru_test_3HP.npz")
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+X_train, y_train = train_data['X'], train_data['y']
+X_test, y_test = test_data['X'], test_data['y']
 
 scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
 
-X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
+X_train_tensor = torch.tensor(X_train, dtype=torch.float32).unsqueeze(1)
 y_train_tensor = torch.tensor(y_train, dtype=torch.long)
-X_test_tensor = torch.tensor(X_test, dtype = torch.float32)
+
+X_test_tensor = torch.tensor(X_test, dtype=torch.float32).unsqueeze(1)
 y_test_tensor = torch.tensor(y_test, dtype=torch.long)
-
-X_train_tensor = X_train_tensor.unsqueeze(1)
-X_test_tensor = X_test_tensor.unsqueeze(1)
-
-# print(X_test_tensor.shape)
 
 class BearingDataset(Dataset):
 
@@ -44,31 +39,41 @@ test_dataset = BearingDataset(X_test_tensor, y_test_tensor)
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
-# for x_batch, y_batch in train_loader:
-#     print(x_batch.shape)
-#     print(y_batch.shape)
 class FaultDetectionCNN(nn.Module):
     def __init__(self):
         super(FaultDetectionCNN, self).__init__()
         
         self.network = nn.Sequential(
-            nn.Conv1d(in_channels=1, out_channels=32, kernel_size=5, padding=2),
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
+            nn.Conv1d(in_channels=1, out_channels=128, kernel_size=16),
+            nn.Tanh(),
+            nn.MaxPool1d(kernel_size=2),
+            nn.Dropout(0.3),
+
+            nn.Conv1d(in_channels=128, out_channels=64, kernel_size=8),
+            nn.Tanh(),
+            nn.MaxPool1d(kernel_size=2),
+            nn.Dropout(0.3),
+
+            nn.Conv1d(in_channels=64, out_channels=32, kernel_size=4),
+            nn.Tanh(),
+            nn.MaxPool1d(kernel_size=2),
+            nn.Dropout(0.25),
+
+            nn.Conv1d(in_channels=32, out_channels=16, kernel_size=4),
+            nn.Tanh(),
             nn.MaxPool1d(kernel_size=2),
 
-            nn.Conv1d(in_channels=32, out_channels=64, kernel_size=5, padding=2),
-            nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.MaxPool1d(kernel_size=2),
+            nn.Conv1d(in_channels=16, out_channels=8, kernel_size=4),
+            nn.Tanh(),
+            nn.Dropout(0.25)
         )
 
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(64*512, 128),
+            nn.Linear(960, 128),
             nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(128, 4)
+            nn.Dropout(0.5), 
+            nn.Linear(128, 10)
         )
 
     def forward(self, x):
@@ -77,13 +82,10 @@ class FaultDetectionCNN(nn.Module):
         return x
 
 model = FaultDetectionCNN()
-# test_output = model(batch_X)
-# print("Output shape:", test_output.shape)
-
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
 
-num_epochs = 10
+num_epochs = 30
 print("Starting Training...")
 
 for epoch in range(num_epochs):
